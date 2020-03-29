@@ -64,7 +64,6 @@ for(i in decadas_url){
   }}
 cont <- 0  
 
-
 # Archivos 2060-2080
 fio_model2 <-  "60FIO_SM.tif"
 fio_max_2 <-  "60FIO_max.tif"
@@ -87,41 +86,101 @@ getwd()
 write.csv(reno, "reno_ocurrencia.csv")
 plot(reno$lat ~ reno$lon, pch=16, cex=0.6, col="red")
 
-## Predicciones para las islas entre 2040 y 2060 ####
-# Archivos raster manipulables
-temp_acces <- raster(acces)
-temp_fio <- raster(fio_model)
-temp_miroc <- raster(miroc_c5)
-
-## Predicciones para las islas entre 2060 y 2080 ####
-# Archivos raster manipulables
-temp_acces2 <- raster(acces2)
-temp_fio2 <- raster(fio_model2)
-temp_miroc2 <- raster(miroc_c5_2)
-e <- extent(10, 24, 76, 81)
-
-# Se divide entre 10 segun indicaciones de "Chelsa" para obtener los grados centigrados
-pred_acces <- crop(temp_acces, e)/10
-pred_fio <- crop(temp_fio, e)/10
-pred_miroc <- crop(temp_miroc, e)/10
-
-# Predicciones para el periodo entre el 60 y el 80
-pred_acces2 <- crop(temp_acces2, e)/10
-pred_fio2 <- crop(temp_fio2, e)/10
-pred_miroc2 <- crop(temp_miroc2, e)/10
 
 # Vemos la lat y la lon para hacer el clip y ver el reno
 summary(reno[,c("lat","lon")])
 
-#creamos el mapa 
-ey <- crop(wrld_simpl , e)
-plot(ey)
+
+# Se cargan todos los modelos mediante la funcion raster y en la zona vista del habitat del reno
+e <- extent(10, 24, 76, 81)
+
+fio_model <- crop(raster(fio_model), e)/10
+acces <- crop(raster(acces), e)/10
+miroc_c5 <- crop(raster(miroc_c5), e)/10
+fio_max <- crop(raster(fio_max), e)/10
+fio_min <- crop(raster(fio_min), e)/10
+acces_max <- crop(raster(acces_max), e)/10
+acces_min <- crop(raster(acces_min), e)/10
+miroc_max <- crop(raster(miroc_max), e)/10
+miroc_min <- crop(raster(miroc_min), e)/10
+fio_model2 <-  crop(raster(fio_model2), e)/10
+fio_max_2 <-  crop(raster(fio_max_2), e)/10
+fio_min_2 <- crop(raster(fio_min_2), e)/10
+acces2 <- crop(raster(acces2), e)/10
+acces_max_2 <- crop(raster(acces_max_2), e)/10
+acces_min_2 <- crop(raster(acces_min_2), e)/10
+miroc_max_2 <- crop(raster(miroc_max_2), e)/10
+miroc_min_2 <- crop(raster(miroc_min_2), e)/10
+miroc_c5_2 <- crop(raster(miroc_c5_2), e)/10
+
+
+
+# Archivos a utilizar para no usar los 19 archivos, hacemos las medias de los modelos
+minimas_40 <- (fio_min+acces_min+miroc_min)/3
+maximas_40 <- (fio_max+acces_max+miroc_max)/3
+medias_40 <- (fio_model+acces+miroc_c5)/3
+
+minimas_60 <- (fio_min_2+acces_min_2+miroc_min_2)/3
+maximas_60 <- (fio_max_2+acces_max_2+miroc_max_2)/3
+medias_60 <- (fio_model2+acces2+miroc_c5_2)/3
+
 
 #Observamos la distribucion del reno
 points(reno$lat~reno$lon, pch=20, cex=0.6, col="red") 
 
+#creo el stack de modelos
+predictores <- stack(minimas_40, maximas_40, medias_40, minimas_60, maximas_60, medias_60)
 
-path <- "C:/Users/futbo/Desktop/MASTER_TIG/Programacion_Avanzada/practica_3/bioclim"
-files <- list.files(path, pattern="tif$", full.names=TRUE)
-#creo un raster stack
-predictores <- stack(files)
+plot(predictores)
+
+# Elimino los valores de NO DATA del habitat del reno
+range(na.omit(reno[,c("lon")]))
+range(na.omit(reno[,c("lat")]))
+# Hallo las coordenadas donde se encuentra el reno
+coord <- reno[,c("lon", "lat")]
+# Extraigo los valores dentro de mi modelo donde deberia de estar el reno
+values <- extract(predictores, coord)
+glimpse(values)
+
+x11()
+pairs(values) #Vemos la relacion entre las variables
+# Creo un data frame de datos de los lugares donde esta el reno
+data <- as.data.frame(values)
+data <- na.omit(data) #Omitiendo los valores de no data
+plot(data)
+
+#Utilizamos la temperatura media, minima y max para estimar el modelo de 2040
+datos <-  subset(predictores, c(1, 2, 3)) 
+model1 <- bioclim(datos, coord) #bioclim crea el modelo
+class(model1) # Vemos que el modelo tiene una configuracion propia de bioclim
+
+##model prediction
+map <- predict(datos, model1)
+class(map)
+
+##pasamos de idoneidad de habitat a presencia
+presp <- reclassify(map,c(0,0.75,0,0.76,1,1)) #de 0 -0.75 sera 0, de 0.76 a 1, es 1
+plot(presp) #suponemos que a partir de 0,75 la probabilidad es lo suficientemente
+#alta para decir que habitan ahi los linces
+
+#Observamos la distribucion del reno
+points(reno$lat~reno$lon, pch=20, cex=0.6, col="red")
+
+###AHORA CON LOS 60
+#Utilizamos la temperatura media, minima y max para estimar el modelo de 2040
+datos2 <-  subset(predictores, c(4, 5, 6)) 
+model2 <- bioclim(datos2, coord) #bioclim crea el modelo
+class(model2) # Vemos que el modelo tiene una configuracion propia de bioclim
+
+##model prediction
+map2 <- predict(datos2, model2)
+class(map2)
+
+
+##pasamos de idoneidad de habitat a presencia
+presp2 <- reclassify(map2,c(0,0.75,0,0.76,1,1)) #de 0 -0.75 sera 0, de 0.76 a 1, es 1
+plot(presp2) #suponemos que a partir de 0,75 la probabilidad es lo suficientemente
+#alta para decir que habitan ahi los linces
+#Observamos la distribucion del reno
+points(reno$lat~reno$lon, pch=20, cex=0.6, col="red")
+# finalmente se observa que en los 60 baja considerablemente el habitat donde podran habitar los renos
