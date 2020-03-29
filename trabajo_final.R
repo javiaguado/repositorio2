@@ -87,13 +87,13 @@ getwd()
 write.csv(reno, "reno_ocurrencia.csv")
 plot(reno$lat ~ reno$lon, pch=16, cex=0.6, col="red")
 
-## Predicciones para Suecia entre 2040 y 2060 ####
+## Predicciones para las islas entre 2040 y 2060 ####
 # Archivos raster manipulables
 temp_acces <- raster(acces)
 temp_fio <- raster(fio_model)
 temp_miroc <- raster(miroc_c5)
 
-## Predicciones para Suecia entre 2060 y 2080 ####
+## Predicciones para las islas entre 2060 y 2080 ####
 # Archivos raster manipulables
 temp_acces2 <- raster(acces2)
 temp_fio2 <- raster(fio_model2)
@@ -110,10 +110,18 @@ pred_acces2 <- crop(temp_acces2, e)/10
 pred_fio2 <- crop(temp_fio2, e)/10
 pred_miroc2 <- crop(temp_miroc2, e)/10
 
+# Vemos la lat y la lon para hacer el clip y ver el reno
 summary(reno[,c("lat","lon")])
 
+#creamos el mapa 
+ey <- crop(wrld_simpl , e)
+plot(ey)
 
-data(wrld_simpl) #creamos el mapa de españa
-plot(pred_acces)
+#Observamos la distribucion del reno
+points(reno$lat~reno$lon, pch=20, cex=0.6, col="red") 
 
-points(reno$lat~reno$lon, pch=20, cex=0.6, col="red") #puntos del lince
+
+path <- "C:/Users/futbo/Desktop/MASTER_TIG/Programacion_Avanzada/practica_3/bioclim"
+files <- list.files(path, pattern="tif$", full.names=TRUE)
+#creo un raster stack
+predictores <- stack(files)
